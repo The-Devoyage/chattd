@@ -10,6 +10,8 @@ pub mod message;
 pub enum ChattdError {
     #[error("Database Error: `{0}`")]
     DatabaseError(String),
+    #[error("OpenAI Error: `{0}`")]
+    OpenAIError(String),
 }
 
 pub type ChattdRresult<T> = Result<T, ChattdError>;
@@ -19,6 +21,7 @@ pub async fn run() -> ChattdRresult<()> {
     let app_state = AppState::new().await?;
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![save_message, read_messages])
         .setup(|app| {

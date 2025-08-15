@@ -1,6 +1,6 @@
 # Chattd
 
-A starter repo to build your own Chat GTP desktop experience.
+A starter repo to build your own Chat GTP desktop experience with Tauri + React and Deeb for data persistence.
 
 ## Getting Started
 

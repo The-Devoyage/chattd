@@ -3,4 +3,5 @@ export interface Message {
   text: string;
   role: "User" | "Bot";
   _created_at: Date;
+  favorite?: boolean
 }

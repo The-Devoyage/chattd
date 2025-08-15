@@ -16,6 +16,8 @@
     "@tauri-apps/plugin-opener": "^2",
     "@wysimark/react": "^3.0.20",
     "clsx": "^2.1.1",
+    "dayjs": "^1.11.13",
+    "lucide-react": "^0.539.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-markdown": "^10.1.0",

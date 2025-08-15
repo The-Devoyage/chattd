@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use deeb::*;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
@@ -17,12 +18,18 @@ pub struct Message {
     text: String,
     role: MessageRole,
     _created_at: String,
+    favorite: Option<bool>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct CreateMessageInput {
     text: String,
     role: MessageRole,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct UpdateMessageInput {
+    favorite: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -104,9 +111,12 @@ pub async fn save_message(
         .json(&req_body)
         .send()
         .await
-        .unwrap();
+        .map_err(|_| anyhow!("Failed to post to OpenAI."))?;
 
-    let parsed: ChatGptResponse = resp.json().await.unwrap();
+    let parsed: ChatGptResponse = resp
+        .json()
+        .await
+        .map_err(|_| anyhow!("Failed to parse JSON."))?;
 
     let bot_text = parsed
         .choices
@@ -124,6 +134,30 @@ pub async fn save_message(
     app_handle.emit("message_created", &saved_bot_msg).unwrap();
 
     Ok(saved_msg)
+}
+
+#[tauri::command]
+pub async fn update_message(
+    app_handle: tauri::AppHandle,
+    app_state: State<'_, AppState>,
+    message_id: String,
+    favorite: bool,
+) -> tauri::Result<Message> {
+    let message = Message::update_one::<UpdateMessageInput>(
+        &app_state.db,
+        Query::eq("_id", message_id),
+        UpdateMessageInput { favorite },
+        None,
+    )
+    .await?;
+
+    if message.is_none() {
+        return Err(tauri::Error::Anyhow(anyhow!("Failed to update message.")));
+    }
+
+    app_handle.emit("message_updated", &message).unwrap();
+
+    Ok(message.unwrap())
 }
 
 #[tauri::command]

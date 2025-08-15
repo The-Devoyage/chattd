@@ -1,5 +1,5 @@
 use app_state::AppState;
-use message::{read_messages, save_message};
+use message::{read_messages, save_message, update_message};
 use tauri::Manager;
 use thiserror::Error;
 
@@ -23,7 +23,11 @@ pub async fn run() -> ChattdRresult<()> {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![save_message, read_messages])
+        .invoke_handler(tauri::generate_handler![
+            save_message,
+            read_messages,
+            update_message
+        ])
         .setup(|app| {
             app.manage(app_state);
             Ok(())

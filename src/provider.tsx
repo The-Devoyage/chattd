@@ -40,6 +40,23 @@ export const GlobalContextProvider: FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   useEffect(() => {
+    const unlistenPromise = listen<Message>("message_updated", (event) => {
+      setMessages((prev) => {
+        return prev.map((m) => {
+          if (m._id === event.payload._id) {
+            return event.payload;
+          }
+          return m;
+        });
+      });
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
+  useEffect(() => {
     const handleFetchMessages = async () => {
       const saved: Message[] = await invoke("read_messages", {});
       setMessages(saved);

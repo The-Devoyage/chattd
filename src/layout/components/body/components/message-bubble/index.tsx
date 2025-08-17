@@ -10,9 +10,7 @@ import { ActionBar } from "./components";
 
 export const MessageBubble: FC<{ message: Message }> = ({ message }) => {
   return (
-    <div
-      className={clsx("w-full chat", message.role === "User" ? "chat-end" : "chat-start")}
-    >
+    <div className={clsx("w-full chat", message.role === "User" ? "chat-end" : "chat-start")}>
       {message.role === "Bot" && (
         <>
           <div className="chat-image avatar">
@@ -30,7 +28,7 @@ export const MessageBubble: FC<{ message: Message }> = ({ message }) => {
         </>
       )}
       <div className={clsx("w-full chat-bubble", message.role === "Bot" && "bg-gray-800")}>
-        <div className="prose lg:prose-xl">
+        <div className="prose overflow-hidden mb-3">
           <Markdown
             remarkPlugins={[remarkGfm]}
             components={{

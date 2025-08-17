@@ -1,4 +1,4 @@
-import { Clock } from "./components";
+import { Clock, FullscreenButton } from "./components";
 import ChattdLogo from "../../../assets/chattd-icon.png";
 
 export const Navbar = () => (
@@ -7,7 +7,8 @@ export const Navbar = () => (
       <img alt="Chattd Logo" src={ChattdLogo} className="h-8 mx-2" />
       <h1 className="text-xl">Chattd</h1>
     </div>
-    <div className="mr-4">
+    <div className="mr-4 flex space-x-2">
+      <FullscreenButton />
       <Clock />
     </div>
   </div>

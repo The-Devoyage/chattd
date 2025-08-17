@@ -5,7 +5,7 @@ import { listen } from "@tauri-apps/api/event";
 
 interface GlobalContext {
   messages: Message[];
-  handleSendMessage: (incoming: Omit<Message, "_id">) => void;
+  handleSendMessage: (incoming: Omit<Message, "_id" | "_created_at">) => void;
   loading: boolean;
 }
 
@@ -19,7 +19,7 @@ export const GlobalContextProvider: FC<{ children: ReactNode }> = ({ children })
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleSendMessage = async (incoming: Omit<Message, "_id">) => {
+  const handleSendMessage = async (incoming: Omit<Message, "_id" | "_created_at">) => {
     setLoading(true);
     try {
       await invoke("save_message", { message: incoming });

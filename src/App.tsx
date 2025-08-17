@@ -9,7 +9,7 @@ function App() {
         <div className="flex shrink-0 w-full">
           <Navbar />
         </div>
-        <div className="container flex-1 overflow-y-auto">
+        <div className="container flex-1 overflow-y-auto px-0 lg:px-48">
           <Body />
         </div>
         <div className="container shrink-0">

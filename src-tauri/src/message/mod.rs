@@ -1,8 +1,11 @@
 use anyhow::anyhow;
+use async_openai::types::{
+    ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage,
+    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+};
 use deeb::*;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
-use tauri_plugin_http::reqwest;
 
 use crate::app_state::AppState;
 
@@ -32,28 +35,6 @@ pub struct UpdateMessageInput {
     favorite: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct ChatGptRequest {
-    model: String,
-    messages: Vec<ChatGptMessage>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ChatGptMessage {
-    role: String,
-    content: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct ChatGptResponse {
-    choices: Vec<Choice>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Choice {
-    message: ChatGptMessage,
-}
-
 #[tauri::command]
 pub async fn save_message(
     app_handle: tauri::AppHandle,
@@ -65,7 +46,6 @@ pub async fn save_message(
         Message::insert_one::<CreateMessageInput>(&app_state.db, message.clone(), None).await?;
     app_handle.emit("message_created", &saved_msg).unwrap();
 
-    // ---- 1️⃣ Get last N messages from DB for context ----
     let mut history = Message::find_many(
         &app_state.db,
         Query::All,
@@ -86,49 +66,46 @@ pub async fn save_message(
     // Put them in chronological order
     history.reverse();
 
-    // ---- 2️⃣ Convert DB messages into OpenAI messages ----
-    let chat_messages: Vec<ChatGptMessage> = history
+    let messages: Vec<ChatCompletionRequestMessage> = history
         .iter()
-        .map(|m| ChatGptMessage {
-            role: match m.role {
-                MessageRole::User => "user".to_string(),
-                MessageRole::Bot => "assistant".to_string(),
-            },
-            content: m.text.clone(),
+        .map(|m| match m.role {
+            MessageRole::User => Ok(ChatCompletionRequestUserMessageArgs::default()
+                .content(m.text.clone())
+                .build()
+                .map_err(|_| anyhow!("Failed to construct user message: {}", m.text))?
+                .into()),
+            MessageRole::Bot => Ok(ChatCompletionRequestAssistantMessageArgs::default()
+                .content(m.text.clone())
+                .build()
+                .map_err(|_| anyhow!("Failed to construct assistant message: {}", m.text))?
+                .into()),
         })
-        .collect();
+        .collect::<Result<Vec<_>, anyhow::Error>>()?;
 
-    // ---- 3️⃣ Call OpenAI with full history ----
-    let client = reqwest::Client::new();
-    let req_body = ChatGptRequest {
-        model: "gpt-5-mini".into(),
-        messages: chat_messages,
-    };
+    let request = CreateChatCompletionRequestArgs::default()
+        .model("gpt-5-mini")
+        .messages(messages)
+        .build()
+        .map_err(|_| anyhow!("Failed to construct chat completion request args."))?;
 
-    let resp = client
-        .post("https://api.openai.com/v1/chat/completions")
-        .bearer_auth(std::env::var("OPENAI_API_KEY").expect("OPENAI_API_KEY not set"))
-        .json(&req_body)
-        .send()
+    let response = app_state
+        .open_ai
+        .chat()
+        .create(request)
         .await
-        .map_err(|_| anyhow!("Failed to post to OpenAI."))?;
+        .map_err(|_| anyhow!("Failed to call the OpenAI API."))?;
 
-    let parsed: ChatGptResponse = resp
-        .json()
-        .await
-        .map_err(|_| anyhow!("Failed to parse JSON."))?;
-
-    let bot_text = parsed
+    let text_res = response
         .choices
         .get(0)
         .map(|c| c.message.content.clone())
-        .unwrap_or_else(|| "No response".into());
+        .unwrap_or_else(|| Some("No Response".to_string()));
 
-    // ---- 4️⃣ Save bot response to DB ----
     let bot_msg = CreateMessageInput {
-        text: bot_text.clone(),
+        text: text_res.unwrap(),
         role: MessageRole::Bot,
     };
+
     let saved_bot_msg =
         Message::insert_one::<CreateMessageInput>(&app_state.db, bot_msg, None).await?;
     app_handle.emit("message_created", &saved_bot_msg).unwrap();

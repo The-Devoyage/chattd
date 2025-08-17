@@ -8,4 +8,4 @@ Have fun and check out the article referencing this repo - https://www.deebkit.c
 
 1. `npm install`
 2. Set an environment variable, `OPENAI_API_KEY` to enable chat.
-2. `npm run tauri dev`
+3. `npm run tauri dev`

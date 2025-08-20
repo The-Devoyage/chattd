@@ -3,11 +3,6 @@ import React, { useEffect } from "react";
 import { useFullscreen } from "../../../../hooks/useFullscreen";
 import { Expand, Shrink } from "lucide-react";
 
-/**
- * FullscreenButton - shows a toggle button and listens for F11.
- * Note: some Linux desktop environments intercept F11. If the listener doesn't fire,
- * use a native menu accelerator (Rust) or a different key binding.
- */
 export const FullscreenButton: React.FC = () => {
   const { isFullscreen, toggleFullscreen } = useFullscreen();
 
@@ -37,7 +32,6 @@ export const FullscreenButton: React.FC = () => {
   return (
     <button
       onClick={toggleFullscreen}
-      aria-pressed={isFullscreen}
       title={isFullscreen ? "Exit fullscreen (F11)" : "Enter fullscreen (F11)"}
       className="text-slate-600 hover:text-slate-200 transition-all cursor-pointer"
     >

@@ -1,5 +1,15 @@
 import { invoke } from "@tauri-apps/api/core";
-import { createContext, FC, ReactNode, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  Dispatch,
+  FC,
+  ReactNode,
+  SetStateAction,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { Message } from "./types";
 import { listen } from "@tauri-apps/api/event";
 
@@ -7,17 +17,29 @@ interface GlobalContext {
   messages: Message[];
   handleSendMessage: (incoming: Omit<Message, "_id" | "_created_at">) => void;
   loading: boolean;
+  favorites: boolean;
+  setFavorites: Dispatch<SetStateAction<boolean>>;
 }
 
 export const GlobalContext = createContext<GlobalContext>({
   messages: [],
   handleSendMessage: () => {},
   loading: false,
+  favorites: false,
+  setFavorites: () => {},
 });
 
 export const GlobalContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [favorites, setFavorites] = useState(false);
+
+  const handleFetchMessages = useCallback(async () => {
+    let query = {};
+    if (favorites) query = { favorites: true };
+    const saved: Message[] = await invoke("read_messages", query);
+    setMessages(saved);
+  }, [favorites]);
 
   const handleSendMessage = async (incoming: Omit<Message, "_id" | "_created_at">) => {
     setLoading(true);
@@ -57,18 +79,17 @@ export const GlobalContextProvider: FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   useEffect(() => {
-    const handleFetchMessages = async () => {
-      const saved: Message[] = await invoke("read_messages", {});
-      setMessages(saved);
-    };
     handleFetchMessages();
-  }, []);
+  }, [favorites]);
 
   useEffect(() => {
     if (messages[messages.length - 1]?.role === "Bot") setLoading(false);
   }, [messages]);
 
-  const value = useMemo(() => ({ messages, handleSendMessage, loading }), [messages, loading]);
+  const value = useMemo(
+    () => ({ messages, handleSendMessage, loading, favorites, setFavorites }),
+    [messages, loading, favorites],
+  );
 
   return <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>;
 };

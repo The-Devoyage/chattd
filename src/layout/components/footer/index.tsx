@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import { GlobalContext } from "../../../provider";
 
 export const Footer = () => {
-  const { handleSendMessage } = useContext(GlobalContext);
+  const { handleSendMessage, favorites } = useContext(GlobalContext);
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
 
@@ -27,6 +27,8 @@ export const Footer = () => {
       document.removeEventListener("focus", handleFocus);
     };
   }, [ref.current]);
+
+  if (favorites) return null
 
   return (
     <div className="navbar bg-base-100 shadow-sm sticky bottom-0">

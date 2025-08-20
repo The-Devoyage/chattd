@@ -1,7 +1,8 @@
 use anyhow::anyhow;
 use async_openai::types::{
     ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage,
-    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
+    ChatCompletionRequestSystemMessageArgs, ChatCompletionRequestUserMessageArgs,
+    CreateChatCompletionRequestArgs,
 };
 use deeb::*;
 use serde::{Deserialize, Serialize};
@@ -66,7 +67,7 @@ pub async fn save_message(
     // Put them in chronological order
     history.reverse();
 
-    let messages: Vec<ChatCompletionRequestMessage> = history
+    let mut messages: Vec<ChatCompletionRequestMessage> = history
         .iter()
         .map(|m| match m.role {
             MessageRole::User => Ok(ChatCompletionRequestUserMessageArgs::default()
@@ -81,6 +82,22 @@ pub async fn save_message(
                 .into()),
         })
         .collect::<Result<Vec<_>, anyhow::Error>>()?;
+
+    let system_prompt = ChatCompletionRequestSystemMessageArgs::default()
+        .content(
+            r#"
+    You are the AI behind the `chattd` application. Assist the user by answering their questions. 
+    ## How to respond:
+    1. Respond in markdown.
+    2. Respond in short concise answers unless asked otherwise.
+    3. Always format code with syntax hints - example: ```js let a = "abcd"; ```
+    "#,
+        )
+        .build()
+        .map_err(|_| anyhow!("Failed to create system prompt."))?
+        .into();
+
+    messages.push(system_prompt);
 
     let request = CreateChatCompletionRequestArgs::default()
         .model("gpt-5-mini")
@@ -142,10 +159,16 @@ pub async fn read_messages(
     app_state: State<'_, AppState>,
     skip: Option<i32>,
     limit: Option<i32>,
+    favorites: Option<bool>,
 ) -> tauri::Result<Vec<Message>> {
+    let query = if favorites.unwrap_or(false) {
+        Query::eq("favorite", true)
+    } else {
+        Query::All
+    };
     let mut messages = Message::find_many(
         &app_state.db,
-        Query::All,
+        query,
         Some(FindManyOptions {
             skip: Some(skip.unwrap_or(0)),
             limit: Some(limit.unwrap_or(20)),

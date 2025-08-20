@@ -1,4 +1,4 @@
-import { Clock, FullscreenButton } from "./components";
+import { Clock, FavoritesButton, FullscreenButton } from "./components";
 import ChattdLogo from "../../../assets/chattd-icon.png";
 
 export const Navbar = () => (
@@ -8,6 +8,7 @@ export const Navbar = () => (
       <h1 className="text-xl">Chattd</h1>
     </div>
     <div className="mr-4 flex space-x-2">
+      <FavoritesButton />
       <FullscreenButton />
       <Clock />
     </div>

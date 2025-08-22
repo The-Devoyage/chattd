@@ -582,6 +582,7 @@ dependencies = [
  "async-openai",
  "deeb",
  "dirs 5.0.1",
+ "futures",
  "serde",
  "serde_json",
  "tauri",

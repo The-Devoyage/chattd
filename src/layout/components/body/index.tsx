@@ -3,7 +3,7 @@ import { GlobalContext } from "../../../provider";
 import { MessageBubble, Loading } from "./components";
 
 export const Body = () => {
-  const { messages, loading } = useContext(GlobalContext);
+  const { messages } = useContext(GlobalContext);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -16,7 +16,7 @@ export const Body = () => {
         {messages.map((m) => (
           <MessageBubble message={m} key={m._id} />
         ))}
-        <Loading loading={loading} />
+        <Loading />
         <div ref={bottomRef} />
       </div>
     </div>

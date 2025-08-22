@@ -19,6 +19,7 @@ interface GlobalContext {
   loading: boolean;
   favorites: boolean;
   setFavorites: Dispatch<SetStateAction<boolean>>;
+  incomingMessage: string;
 }
 
 export const GlobalContext = createContext<GlobalContext>({
@@ -27,10 +28,12 @@ export const GlobalContext = createContext<GlobalContext>({
   loading: false,
   favorites: false,
   setFavorites: () => {},
+  incomingMessage: "",
 });
 
 export const GlobalContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [incomingMessage, setIncomingMessage] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState(false);
 
@@ -46,13 +49,16 @@ export const GlobalContextProvider: FC<{ children: ReactNode }> = ({ children })
     try {
       await invoke("save_message", { message: incoming });
     } catch (err) {
+      // TODO: Show better error...
       console.error(err);
     }
   };
 
   useEffect(() => {
     const unlistenPromise = listen<Message>("message_created", (event) => {
-      if (event.payload.role === "Bot") setLoading(false);
+      if (event.payload.role === "Bot") {
+        setLoading(false);
+      }
       setMessages((prev) => [...prev, event.payload]);
     });
 
@@ -79,16 +85,34 @@ export const GlobalContextProvider: FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   useEffect(() => {
+    const unlistenPromise = listen<string>("message_streaming", (event) => {
+      setIncomingMessage((curr) => (curr += event.payload));
+    });
+
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
+
+  useEffect(() => {
+    const unlistenPromose = listen<Message>("message_stream_finished", (event) => {
+      setIncomingMessage("");
+      setMessages((curr) => [...curr, event.payload]);
+      setLoading(false);
+    });
+
+    return () => {
+      unlistenPromose.then((unlisten) => unlisten());
+    };
+  }, []);
+
+  useEffect(() => {
     handleFetchMessages();
   }, [favorites]);
 
-  useEffect(() => {
-    if (messages[messages.length - 1]?.role === "Bot") setLoading(false);
-  }, [messages]);
-
   const value = useMemo(
-    () => ({ messages, handleSendMessage, loading, favorites, setFavorites }),
-    [messages, loading, favorites],
+    () => ({ messages, handleSendMessage, loading, favorites, setFavorites, incomingMessage }),
+    [messages, loading, favorites, incomingMessage],
   );
 
   return <GlobalContext.Provider value={value}>{children}</GlobalContext.Provider>;

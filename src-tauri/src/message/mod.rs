@@ -5,6 +5,7 @@ use async_openai::types::{
     CreateChatCompletionRequestArgs,
 };
 use deeb::*;
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, State};
 
@@ -97,35 +98,51 @@ pub async fn save_message(
         .map_err(|_| anyhow!("Failed to create system prompt."))?
         .into();
 
-    messages.push(system_prompt);
+    messages.insert(0, system_prompt);
 
     let request = CreateChatCompletionRequestArgs::default()
-        .model("gpt-5-mini")
+        .model("o3-mini")
         .messages(messages)
         .build()
-        .map_err(|_| anyhow!("Failed to construct chat completion request args."))?;
+        .map_err(|e| {
+            println!("Error: {e:?}");
+            anyhow!("Failed to construct chat completion request args.")
+        })?;
 
-    let response = app_state
+    let mut stream = app_state
         .open_ai
         .chat()
-        .create(request)
+        .create_stream(request)
         .await
-        .map_err(|_| anyhow!("Failed to call the OpenAI API."))?;
+        .map_err(|e| {
+            println!("Error: {e:?}");
+            anyhow!("Failed to create stream.")
+        })?;
 
-    let text_res = response
-        .choices
-        .get(0)
-        .map(|c| c.message.content.clone())
-        .unwrap_or_else(|| Some("No Response".to_string()));
-
-    let bot_msg = CreateMessageInput {
-        text: text_res.unwrap(),
+    let mut bot_msg = CreateMessageInput {
+        text: "".to_string(),
         role: MessageRole::Bot,
     };
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(response) => {
+                response.choices.iter().for_each(|chat_choice| {
+                    if let Some(ref content) = chat_choice.delta.content {
+                        app_handle.emit("message_streaming", content).unwrap();
+                        bot_msg.text += content;
+                    }
+                });
+            }
+            Err(e) => {
+                // TODO: return here if error, or message gets created anyways...
+                println!("Error while streaming: {e:?}")
+            }
+        }
+    }
 
-    let saved_bot_msg =
-        Message::insert_one::<CreateMessageInput>(&app_state.db, bot_msg, None).await?;
-    app_handle.emit("message_created", &saved_bot_msg).unwrap();
+    let _ = Message::insert_one::<CreateMessageInput>(&app_state.db, bot_msg.clone(), None).await?;
+
+    app_handle.emit("message_stream_finished", bot_msg).unwrap();
 
     Ok(saved_msg)
 }
